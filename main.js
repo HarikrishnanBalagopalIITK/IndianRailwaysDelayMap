@@ -1,0 +1,187 @@
+const cout = console.log;
+const cerr = console.error;
+const sel = s => document.querySelector(s);
+const middleindiacoords = [23.012455, 78.085792];
+const NDLScoords = [28.642257, 77.218603];
+const DELAY_MIN = 0;
+const DELAY_MAX = 120;
+const DELAY_RANGE = DELAY_MAX - DELAY_MIN;
+const PARTITIONS = 5;
+const STEP = DELAY_RANGE / PARTITIONS;
+const delayRangeColors = ['blue', 'green', 'orange', 'yellow', 'red'];
+
+const accessToken = 'pk.eyJ1IjoidGVzdGluZ21hcGJveGlpdGsiLCJhIjoiY2pvanlqN3JnMDFiOTNwbW5xbG83NnE1cSJ9.Fx5Gu72P14nE2qcVshLMbg';
+const tileOptions = {
+    attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+    maxZoom: 18,
+    id: 'mapbox.satellite',
+    accessToken: accessToken
+};
+const mapOptions = {
+    preferCanvas: true
+};
+const stationData = {};
+
+let counter = 4;
+
+// MAIN
+
+main();
+
+function main()
+{
+    cout('hi from the main thread');
+
+    const newMap = createMap();
+
+    const worker = new Worker('worker.js');
+    worker.onmessage = event => handleRow(event, newMap);
+}
+
+// FUNCTIONS
+
+function createMap()
+{
+    const newMap = L.map('mapid', mapOptions).setView(NDLScoords, 10);
+    L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}', tileOptions)
+    .addTo(newMap);
+
+    return newMap;
+}
+
+function handleRow(event, newMap)
+{
+    if(event.data === 'done')
+    {
+        cout('worker is done');
+        return nextStage(newMap);
+    }
+
+    if(event.data.length < 1)return cout('length of row < 1');
+
+    const data = event.data[0];
+    if(!isValid(data))
+    {
+        if(counter < 1)return;
+        counter--;
+        cout('event:', event)
+        return cout('data is not valid');
+    }
+
+    stationData[data.station_code] = data;
+
+  
+    //const delayColor = {color: '#FF0000', colorClass: 'red'};
+
+    const red = blueToRed(data.yr_mean);
+    const delayColor = {color: `rgb(${red}, 0, ${255 - red})`, colorClass: 'red'}
+
+    for(let i = 0, threshold = DELAY_MIN; i < PARTITIONS; i++, threshold += STEP)
+    {
+        if(data.yr_mean < threshold)break;
+        delayColor.colorClass = delayRangeColors[i];
+    }
+    /*
+    for(let threshold in delayRange)
+    {
+        if(data.yr_mean < threshold)
+        {
+            const [color, colorClass] = delayRange[threshold];
+            //delayColor.color = color;
+            delayColor.colorClass = colorClass;
+            break;
+        }
+    }
+    */
+
+    const stationPopupHtml = `
+    <div class="station_name">${data.station_name}(${data.station_code})</div>
+    <div class="station_delay ${delayColor.colorClass}">
+
+        <div>Time period</div><div>Mean delay<br/>(in minutes)</div><div>Standard deviation<br/>of delay</div>
+        <div>Oct 2017 to Oct 2018</div><div>${data.yr_mean}</div><div>${data.yr_std}</div>
+        <div>October 2017</div><div>${data.oct17_mean}</div><div>${data.oct17_std}</div>
+        <div>November 2017</div><div>${data.nov17_mean}</div><div>${data.nov17_std}</div>
+        <div>Decmber 2017</div><div>${data.dec17_mean}</div><div>${data.dec17_std}</div>
+        <div>January 2018</div><div>${data.jan18_mean}</div><div>${data.jan18_std}</div>
+        <div>February 2018</div><div>${data.feb18_mean}</div><div>${data.feb18_std}</div>
+        <div>March 2018</div><div>${data.mar18_mean}</div><div>${data.mar18_std}</div>
+        <div>April 2018</div><div>${data.apr18_mean}</div><div>${data.apr18_std}</div>
+        <div>May 2018</div><div>${data.may18_mean}</div><div>${data.may18_std}</div>
+        <div>June 2018</div><div>${data.jun18_mean}</div><div>${data.jun18_std}</div>
+        <div>July 2018</div><div>${data.jul18_mean}</div><div>${data.jul18_std}</div>
+        <div>August 2018</div><div>${data.aug18_mean}</div><div>${data.aug18_std}</div>
+        <div>September 2018</div><div>${data.sep18_mean}</div><div>${data.sep18_std}</div>
+        <div>October 2018</div><div>${data.oct18_mean}</div><div>${data.oct18_std}</div>
+        <div>Christmas 2017</div><div>${data.christmas17_mean}</div><div>${data.christmas17_std}</div>
+        <div>Diwali 2018</div><div>${data.diwali18_mean}</div><div>${data.diwali18_std}</div>
+        <div>Holi 2018</div><div>${data.holi18_mean}</div><div>${data.holi18_std}</div>
+
+    </div>
+    `;
+  
+    const marker = L.circleMarker([data.longitude, data.latitude], {radius: 1, color: delayColor.color})
+    marker.bindPopup(stationPopupHtml).addTo(newMap);
+
+    stationData[data.station_code].marker = marker;
+}
+
+function isValid(data)
+{
+    if(!('latitude' in data) || data['latitude'] === null)return false;
+    if(!('longitude' in data) || data['longitude'] === null)return false;
+    if(!('station_code' in data) || data['station_code'] === null)return false;
+    return true;
+}
+
+function nextStage(newMap)
+{
+    const searchBar = sel('#searchBar');
+    searchBar.addEventListener('change', e =>
+    {
+        const query = searchBar.value.trim().toUpperCase();
+        if(query in stationData)
+        {
+            cout('Found it');
+            const station = stationData[query];
+            newMap.panTo([station.longitude, station.latitude]);
+            station.marker.openPopup();
+        }
+        else
+        {
+            return alert('Couldn\'t find station');
+        }
+    });
+    const saveButton = sel('#save');
+    saveButton.addEventListener('click', () => handleClickSave(saveButton, newMap));
+    const loading = sel('#loading');
+    loading.classList.add('hidden');
+}
+
+function blueToRed(delay)
+{
+    let x = 0;
+    if(delay > DELAY_MAX)x = 1;
+    else if(delay < DELAY_MIN)x = 0;
+    else x = (delay - DELAY_MIN) / DELAY_RANGE;
+
+    return x * 255;
+}
+
+function handleClickSave(saveButton, map)
+{
+    const loading = sel('#loading');
+    loading.classList.remove('hidden');
+
+    leafletImage(map, (err, canvas) => {
+        if(err)return cout(err);
+        else
+        {
+            const image = canvas.toDataURL("image/png");
+            const newWindow = window.open();
+            newWindow.document.head.innerHTML = `<title>Image saved at ${Date()}</title>`;
+            newWindow.document.body.innerHTML = '<img src="'+ image +'" alt="from canvas"/>';
+        }
+        loading.classList.add('hidden');
+    });
+}

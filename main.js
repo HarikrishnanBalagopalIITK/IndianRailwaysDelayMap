@@ -20,7 +20,9 @@ const tileOptions = {
 const mapOptions = {
     preferCanvas: true
 };
-const stationData = {};
+const stationData = {}, stationsByName = {}, options = [];
+const searchBar = sel('#searchBar');
+let newMap = null;
 
 let counter = 4;
 
@@ -32,7 +34,7 @@ function main()
 {
     cout('hi from the main thread');
 
-    const newMap = createMap();
+    newMap = createMap();
 
     const worker = new Worker('worker.js');
     worker.onmessage = event => handleRow(event, newMap);
@@ -48,6 +50,9 @@ function createMap()
 
     return newMap;
 }
+
+const normalizeStationName = name => name.trim().toLowerCase();
+const roundValue = value => Math.round((value + Number.EPSILON) * 100) / 100;
 
 function handleRow(event, newMap)
 {
@@ -67,9 +72,10 @@ function handleRow(event, newMap)
         cout('event:', event)
         return cout('data is not valid');
     }
+    const normalized_name = normalizeStationName(data.station_name);
 
     stationData[data.station_code] = data;
-
+    stationsByName[normalized_name] = data;
   
     //const delayColor = {color: '#FF0000', colorClass: 'red'};
 
@@ -99,23 +105,23 @@ function handleRow(event, newMap)
     <div class="station_delay ${delayColor.colorClass}">
 
         <div>Time period</div><div>Mean delay<br/>(in minutes)</div><div>Standard deviation<br/>of delay</div>
-        <div>Oct 2017 to Oct 2018</div><div>${data.yr_mean}</div><div>${data.yr_std}</div>
-        <div>October 2017</div><div>${data.oct17_mean}</div><div>${data.oct17_std}</div>
-        <div>November 2017</div><div>${data.nov17_mean}</div><div>${data.nov17_std}</div>
-        <div>Decmber 2017</div><div>${data.dec17_mean}</div><div>${data.dec17_std}</div>
-        <div>January 2018</div><div>${data.jan18_mean}</div><div>${data.jan18_std}</div>
-        <div>February 2018</div><div>${data.feb18_mean}</div><div>${data.feb18_std}</div>
-        <div>March 2018</div><div>${data.mar18_mean}</div><div>${data.mar18_std}</div>
-        <div>April 2018</div><div>${data.apr18_mean}</div><div>${data.apr18_std}</div>
-        <div>May 2018</div><div>${data.may18_mean}</div><div>${data.may18_std}</div>
-        <div>June 2018</div><div>${data.jun18_mean}</div><div>${data.jun18_std}</div>
-        <div>July 2018</div><div>${data.jul18_mean}</div><div>${data.jul18_std}</div>
-        <div>August 2018</div><div>${data.aug18_mean}</div><div>${data.aug18_std}</div>
-        <div>September 2018</div><div>${data.sep18_mean}</div><div>${data.sep18_std}</div>
-        <div>October 2018</div><div>${data.oct18_mean}</div><div>${data.oct18_std}</div>
-        <div>Christmas 2017</div><div>${data.christmas17_mean}</div><div>${data.christmas17_std}</div>
-        <div>Diwali 2018</div><div>${data.diwali18_mean}</div><div>${data.diwali18_std}</div>
-        <div>Holi 2018</div><div>${data.holi18_mean}</div><div>${data.holi18_std}</div>
+        <div>Oct 2017 to Oct 2018</div><div>${roundValue(data.yr_mean)}</div><div>${roundValue(data.yr_std)}</div>
+        <div>October 2017</div><div>${roundValue(data.oct17_mean)}</div><div>${roundValue(data.oct17_std)}</div>
+        <div>November 2017</div><div>${roundValue(data.nov17_mean)}</div><div>${roundValue(data.nov17_std)}</div>
+        <div>Decmber 2017</div><div>${roundValue(data.dec17_mean)}</div><div>${roundValue(data.dec17_std)}</div>
+        <div>January 2018</div><div>${roundValue(data.jan18_mean)}</div><div>${roundValue(data.jan18_std)}</div>
+        <div>February 2018</div><div>${roundValue(data.feb18_mean)}</div><div>${roundValue(data.feb18_std)}</div>
+        <div>March 2018</div><div>${roundValue(data.mar18_mean)}</div><div>${roundValue(data.mar18_std)}</div>
+        <div>April 2018</div><div>${roundValue(data.apr18_mean)}</div><div>${roundValue(data.apr18_std)}</div>
+        <div>May 2018</div><div>${roundValue(data.may18_mean)}</div><div>${roundValue(data.may18_std)}</div>
+        <div>June 2018</div><div>${roundValue(data.jun18_mean)}</div><div>${roundValue(data.jun18_std)}</div>
+        <div>July 2018</div><div>${roundValue(data.jul18_mean)}</div><div>${roundValue(data.jul18_std)}</div>
+        <div>August 2018</div><div>${roundValue(data.aug18_mean)}</div><div>${roundValue(data.aug18_std)}</div>
+        <div>September 2018</div><div>${roundValue(data.sep18_mean)}</div><div>${roundValue(data.sep18_std)}</div>
+        <div>October 2018</div><div>${roundValue(data.oct18_mean)}</div><div>${roundValue(data.oct18_std)}</div>
+        <div>Christmas 2017</div><div>${roundValue(data.christmas17_mean)}</div><div>${roundValue(data.christmas17_std)}</div>
+        <div>Diwali 2018</div><div>${roundValue(data.diwali18_mean)}</div><div>${roundValue(data.diwali18_std)}</div>
+        <div>Holi 2018</div><div>${roundValue(data.holi18_mean)}</div><div>${roundValue(data.holi18_std)}</div>
 
     </div>
     `;
@@ -124,6 +130,11 @@ function handleRow(event, newMap)
     marker.bindPopup(stationPopupHtml).addTo(newMap);
 
     stationData[data.station_code].marker = marker;
+    stationsByName[normalized_name].marker = marker;
+
+    const option = document.createElement('option');
+    option.value = normalized_name;
+    options.push(option);
 }
 
 function isValid(data)
@@ -136,26 +147,49 @@ function isValid(data)
 
 function nextStage(newMap)
 {
-    const searchBar = sel('#searchBar');
-    searchBar.addEventListener('change', e =>
+    const dataList = document.createElement('datalist');
+    dataList.id = 'stations-name-list';
+    dataList.append(...options);
+    document.body.appendChild(dataList);
+
+    // Hack for firefox for desktop.
+    // Firefox version 70.0.1 on Windows 10 doesn't fire change event when a option is selected.
+    searchBar.addEventListener('keyup', e =>
     {
-        const query = searchBar.value.trim().toUpperCase();
-        if(query in stationData)
-        {
-            cout('Found it');
-            const station = stationData[query];
-            newMap.panTo([station.longitude, station.latitude]);
-            station.marker.openPopup();
-        }
-        else
-        {
-            return alert('Couldn\'t find station');
-        }
+        if(e.key !== 'Enter')return;
+        handleSearch();
     });
+    // Hack for firefox for desktop.
+
+    searchBar.addEventListener('change', () => handleSearch());
+
     const saveButton = sel('#save');
     saveButton.addEventListener('click', () => handleClickSave(saveButton, newMap));
     const loading = sel('#loading');
     loading.classList.add('hidden');
+}
+
+function handleSearch()
+{
+    const query = searchBar.value.trim().toUpperCase();
+    if(query in stationData)
+    {
+        cout('Found it');
+        const station = stationData[query];
+        newMap.panTo([station.longitude, station.latitude]);
+        station.marker.openPopup();
+    }
+    else if(query.toLowerCase() in stationsByName)
+    {
+        cout('Found it');
+        const station = stationsByName[query.toLowerCase()];
+        newMap.panTo([station.longitude, station.latitude]);
+        station.marker.openPopup();
+    }
+    else
+    {
+        return alert("Couldn't find station");
+    }
 }
 
 function blueToRed(delay)

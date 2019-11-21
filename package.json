@@ -1,0 +1,24 @@
+{
+  "name": "IndianRailwaysDelayMap",
+  "version": "1.0.0",
+  "description": "Done as part of IITK Data Mining (CS685) project.",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "es-dev-server --watch --open"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HarikrishnanBalagopalIITK/IndianRailwaysDelayMap.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/HarikrishnanBalagopalIITK/IndianRailwaysDelayMap/issues"
+  },
+  "homepage": "https://github.com/HarikrishnanBalagopalIITK/IndianRailwaysDelayMap#readme",
+  "devDependencies": {
+    "es-dev-server": "^1.26.0"
+  }
+}

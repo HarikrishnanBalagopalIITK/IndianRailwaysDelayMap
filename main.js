@@ -1,3 +1,6 @@
+import  { saveAs } from 'file-saver';
+import leafletImage from 'leaflet-image';
+
 const cout = console.log;
 const cerr = console.error;
 const sel = s => document.querySelector(s);
@@ -11,18 +14,13 @@ const STEP = DELAY_RANGE / PARTITIONS;
 const delayRangeColors = ['blue', 'green', 'orange', 'yellow', 'red'];
 
 const accessToken = 'pk.eyJ1IjoidGVzdGluZ21hcGJveGlpdGsiLCJhIjoiY2pvanlqN3JnMDFiOTNwbW5xbG83NnE1cSJ9.Fx5Gu72P14nE2qcVshLMbg';
-const tileOptions = {
-    attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
-    maxZoom: 18,
-    id: 'mapbox.satellite',
-    accessToken: accessToken
-};
-const mapOptions = {
-    preferCanvas: true
-};
+
+const stationMarkers = [];
 const stationData = {}, stationsByName = {}, options = [];
 const searchBar = sel('#searchBar');
 let newMap = null;
+let satelliteLayer = null;
+let streetsLayer = null;
 
 let counter = 4;
 
@@ -44,9 +42,19 @@ function main()
 
 function createMap()
 {
-    const newMap = L.map('mapid', mapOptions).setView(NDLScoords, 10);
-    L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}', tileOptions)
-    .addTo(newMap);
+    const attribution = 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>';
+    const tileOptions = { attribution, accessToken, maxZoom: 18 };
+    const mapBoxURL = 'https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}';
+
+    satelliteLayer = L.tileLayer(mapBoxURL, {...tileOptions, id: 'mapbox.satellite'});
+    streetsLayer = L.tileLayer(mapBoxURL, {...tileOptions, id: 'mapbox.streets'});
+    const mapOptions = {
+        preferCanvas: true,
+        layers: [satelliteLayer],
+        center: NDLScoords,
+        zoom: 10
+    };
+    const newMap = L.map('mapid', mapOptions)
 
     return newMap;
 }
@@ -127,7 +135,8 @@ function handleRow(event, newMap)
     `;
   
     const marker = L.circleMarker([data.longitude, data.latitude], {radius: 1, color: delayColor.color})
-    marker.bindPopup(stationPopupHtml).addTo(newMap);
+    marker.bindPopup(stationPopupHtml);//.addTo(newMap);
+    stationMarkers.push(marker);
 
     stationData[data.station_code].marker = marker;
     stationsByName[normalized_name].marker = marker;
@@ -147,19 +156,30 @@ function isValid(data)
 
 function nextStage(newMap)
 {
+    const stationsLayer = L.layerGroup(stationMarkers);
+    newMap.addLayer(stationsLayer);
+    var baseMaps = {
+        "Satellite": satelliteLayer,
+        "Streets": streetsLayer
+    };
+    var overlayMaps = {
+        "Stations": stationsLayer
+    };
+    L.control.layers(baseMaps, overlayMaps).addTo(newMap);
+
     const dataList = document.createElement('datalist');
     dataList.id = 'stations-name-list';
     dataList.append(...options);
     document.body.appendChild(dataList);
 
-    // Hack for firefox for desktop.
+    // Hack for firefox for desktop start.
     // Firefox version 70.0.1 on Windows 10 doesn't fire change event when a option is selected.
     searchBar.addEventListener('keyup', e =>
     {
         if(e.key !== 'Enter')return;
         handleSearch();
     });
-    // Hack for firefox for desktop.
+    // Hack for firefox for desktop end.
 
     searchBar.addEventListener('change', () => handleSearch());
 
@@ -208,14 +228,11 @@ function handleClickSave(saveButton, map)
     loading.classList.remove('hidden');
 
     leafletImage(map, (err, canvas) => {
-        if(err)return cout(err);
-        else
-        {
-            const image = canvas.toDataURL("image/png");
-            const newWindow = window.open();
-            newWindow.document.head.innerHTML = `<title>Image saved at ${Date()}</title>`;
-            newWindow.document.body.innerHTML = '<img src="'+ image +'" alt="from canvas"/>';
-        }
         loading.classList.add('hidden');
+
+        if(err)return cout(err);
+
+        const filename = `map_saved_at_${Date()}.png`;
+        canvas.toBlob(blob => saveAs(blob, filename));
     });
 }

@@ -1,5 +1,6 @@
 import  { saveAs } from 'file-saver';
 import leafletImage from 'leaflet-image';
+import '@google-web-components/google-chart';
 
 const cout = console.log;
 const cerr = console.error;
@@ -18,6 +19,9 @@ const accessToken = 'pk.eyJ1IjoidGVzdGluZ21hcGJveGlpdGsiLCJhIjoiY2pvanlqN3JnMDFi
 const stationMarkers = [];
 const stationData = {}, stationsByName = {}, options = [];
 const searchBar = sel('#searchBar');
+const months = ['October 2017', 'November 2017', 'Decmber 2017', 'January 2018', 'February 2018', 'March 2018', 'April 2018', 'May 2018', 'June 2018', 'July 2018', 'August 2018', 'September 2018', 'October 2018']
+const month_keys = ['oct17', 'nov17', 'dec17', 'jan18', 'feb18', 'mar18', 'apr18', 'may18', 'jun18', 'jul18', 'aug18', 'sep18', 'oct18'];
+
 let newMap = null;
 let satelliteLayer = null;
 let streetsLayer = null;
@@ -108,29 +112,34 @@ function handleRow(event, newMap)
     }
     */
 
+    const google_chart_string = `<google-chart type="line" options='{"chartArea":{"width": "100%", "height": "80%"}}' data='[["Month", "Delay", {"type":"number", "role":"interval"}, {"type":"number", "role":"interval"}],` +
+    months.map((month, i) => {
+        const key = month_keys[i];
+        const mean = roundValue(data[key + '_mean']);
+        const std = roundValue(data[key + '_std']) / 10;
+        const lower = roundValue(mean - std);
+        const upper = roundValue(mean + std);
+        return `["${month}",${mean},${lower},${upper}]`;
+    }).join(',') +
+    `]'></google-chart>`;
+
     const stationPopupHtml = `
+    ${google_chart_string}
     <div class="station_name">${data.station_name}(${data.station_code})</div>
     <div class="station_delay ${delayColor.colorClass}">
 
-        <div>Time period</div><div>Mean delay<br/>(in minutes)</div><div>Standard deviation<br/>of delay</div>
-        <div>Oct 2017 to Oct 2018</div><div>${roundValue(data.yr_mean)}</div><div>${roundValue(data.yr_std)}</div>
-        <div>October 2017</div><div>${roundValue(data.oct17_mean)}</div><div>${roundValue(data.oct17_std)}</div>
-        <div>November 2017</div><div>${roundValue(data.nov17_mean)}</div><div>${roundValue(data.nov17_std)}</div>
-        <div>Decmber 2017</div><div>${roundValue(data.dec17_mean)}</div><div>${roundValue(data.dec17_std)}</div>
-        <div>January 2018</div><div>${roundValue(data.jan18_mean)}</div><div>${roundValue(data.jan18_std)}</div>
-        <div>February 2018</div><div>${roundValue(data.feb18_mean)}</div><div>${roundValue(data.feb18_std)}</div>
-        <div>March 2018</div><div>${roundValue(data.mar18_mean)}</div><div>${roundValue(data.mar18_std)}</div>
-        <div>April 2018</div><div>${roundValue(data.apr18_mean)}</div><div>${roundValue(data.apr18_std)}</div>
-        <div>May 2018</div><div>${roundValue(data.may18_mean)}</div><div>${roundValue(data.may18_std)}</div>
-        <div>June 2018</div><div>${roundValue(data.jun18_mean)}</div><div>${roundValue(data.jun18_std)}</div>
-        <div>July 2018</div><div>${roundValue(data.jul18_mean)}</div><div>${roundValue(data.jul18_std)}</div>
-        <div>August 2018</div><div>${roundValue(data.aug18_mean)}</div><div>${roundValue(data.aug18_std)}</div>
-        <div>September 2018</div><div>${roundValue(data.sep18_mean)}</div><div>${roundValue(data.sep18_std)}</div>
-        <div>October 2018</div><div>${roundValue(data.oct18_mean)}</div><div>${roundValue(data.oct18_std)}</div>
-        <div>Christmas 2017</div><div>${roundValue(data.christmas17_mean)}</div><div>${roundValue(data.christmas17_std)}</div>
-        <div>Diwali 2018</div><div>${roundValue(data.diwali18_mean)}</div><div>${roundValue(data.diwali18_std)}</div>
-        <div>Holi 2018</div><div>${roundValue(data.holi18_mean)}</div><div>${roundValue(data.holi18_std)}</div>
-
+    <div>Time period</div><div>Mean delay<br/>(in minutes)</div><div>Standard deviation<br/>of delay</div>
+    <div>Oct 2017 to Oct 2018</div><div>${roundValue(data.yr_mean)}</div><div>${roundValue(data.yr_std)}</div>` +
+    months.map((month, i) => {
+        const key = month_keys[i];
+        const mean = roundValue(data[key + '_mean']);
+        const std = roundValue(data[key + '_std']);
+        return `<div>${month}</div><div>${mean}</div><div>${std}</div>`;
+    }).join('') +
+    `<div>Christmas 2017</div><div>${roundValue(data.christmas17_mean)}</div><div>${roundValue(data.christmas17_std)}</div>
+    <div>Diwali 2018</div><div>${roundValue(data.diwali18_mean)}</div><div>${roundValue(data.diwali18_std)}</div>
+    <div>Holi 2018</div><div>${roundValue(data.holi18_mean)}</div><div>${roundValue(data.holi18_std)}</div>
+    
     </div>
     `;
   

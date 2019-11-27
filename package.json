@@ -28,6 +28,7 @@
     "parcel-bundler": "^1.12.4"
   },
   "dependencies": {
+    "@google-web-components/google-chart": "^3.3.0",
     "file-saver": "^2.0.2",
     "leaflet-image": "^0.4.0"
   }

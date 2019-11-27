@@ -187,6 +187,8 @@ function nextStage(newMap)
     saveButton.addEventListener('click', () => handleClickSave(saveButton, newMap));
     const loading = sel('#loading');
     loading.classList.add('hidden');
+
+    stationData['NDLS'].marker.openPopup();
 }
 
 function handleSearch()
